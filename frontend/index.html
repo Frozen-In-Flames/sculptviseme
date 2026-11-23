@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SculptViseme</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+<style>
+  :root { --bg: #101014; --panel: #17171d; --line: #26262f; --fg: #e9e9ee; --dim: #9a9aa5; --ice: #7fd4ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 18px 70px; }
+  header { margin-bottom: 22px; }
+  h1 { font-size: 1.7rem; }
+  .lede { color: var(--dim); margin-top: 8px; }
+  nav.steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 26px; }
+  nav.steps a { color: var(--dim); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 5px 13px; font-size: 0.9rem; }
+  nav.steps a.active { color: var(--ice); border-color: var(--ice); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 22px; }
+  h2 { font-size: 1.15rem; color: var(--ice); margin-bottom: 10px; }
+  p.note { color: var(--dim); font-size: 0.93rem; margin-bottom: 12px; }
+  #stage { position: relative; width: 100%; height: 480px; background: #0b0b0f; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  #stage canvas { display: block; }
+  #stage .hint { position: absolute; left: 12px; bottom: 8px; color: var(--dim); font-size: 0.82rem; pointer-events: none; }
+  #stage .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dim); }
+  label.file, button { display: inline-block; background: #101018; border: 1px solid var(--line); border-radius: 8px; color: var(--fg); padding: 9px 15px; font-size: 0.95rem; cursor: pointer; font-family: inherit; margin: 4px 6px 4px 0; }
+  label.file:hover, button:hover { border-color: var(--ice); color: var(--ice); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  input[type="file"] { display: none; }
+  .status { color: var(--dim); font-size: 0.92rem; min-height: 1.4em; margin-top: 8px; }
+  .wordlist { margin-top: 10px; }
+  .wordlist .w { display: inline-block; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; margin: 0 6px 6px 0; font-size: 0.9rem; }
+  .wordlist .w.playing { border-color: var(--ice); color: var(--ice); }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  legend { color: var(--dim); font-size: 0.9rem; padding: 0 6px; }
+  .slider { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .slider label { width: 130px; font-size: 0.9rem; color: var(--dim); }
+  .slider input[type="range"] { flex: 1; }
+  .slider .val { width: 44px; text-align: right; font-size: 0.88rem; }
+  .cmy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 16px; }
+  @media (max-width: 560px) { .cmy { grid-template-columns: 1fr; } #stage { height: 380px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>SculptViseme</h1>
+  <p class="lede">Monochrome clay busts, word-by-word lip-sync, CMYK then RGB grading, local export. Self-hosted: no accounts, no external APIs. Heavy stages run on this device by default, or on a cloud runner when you choose one below.</p>
+</header>
+
+<nav class="steps" id="stepNav">
+  <a href="#step-upload" data-step="upload" class="active">1 · Upload</a>
+  <a href="#step-sculpt" data-step="sculpt">2 · Sculpt</a>
+  <a href="#step-lipsync" data-step="lipsync">3 · Lip-Sync</a>
+  <a href="#step-grade" data-step="grade">4 · Grade</a>
+  <a href="#step-export" data-step="export">5 · Export</a>
+</nav>
+
+<section id="step-compute">
+  <h2>Compute</h2>
+  <p class="note">Where the heavy stages (bundle validation, lip-sync alignment, USDZ build) run. This device is the default and needs no setup. A cloud runner is the same backend hosted elsewhere (see the Dockerfile); choose it only if you run one.</p>
+  <label for="computeMode">Run heavy stages on</label>
+  <select id="computeMode">
+    <option value="local">This device (default)</option>
+    <option value="cloud">Cloud runner</option>
+  </select>
+  <div id="cloudFields" style="display:none; margin-top:10px;">
+    <div class="slider"><label for="cloudUrl">Runner URL</label><input type="url" id="cloudUrl" placeholder="https://runner.example.com" style="flex:1;"></div>
+    <div class="slider"><label for="cloudToken">Access token</label><input type="password" id="cloudToken" placeholder="Only if the runner requires one" style="flex:1;"></div>
+  </div>
+  <button type="button" id="checkRunnerBtn">Check runner</button>
+  <div class="status" id="computeStatus">Not checked yet.</div>
+</section>
+
+<section id="step-upload">
+  <h2>1 · Upload</h2>
+  <p class="note">A capture bundle (.claybundle.zip) goes to the compute runner for validation and opens a job. A GLB loads straight into the viewer. On this machine the v3 clay bust is offered as a local demo fixture.</p>
+  <label class="file">Capture bundle<input type="file" id="bundleFile" accept=".zip"></label>
+  <label class="file">Model (.glb)<input type="file" id="glbFile" accept=".glb,model/gltf-binary"></label>
+  <button type="button" id="demoBtn">Load the v3 clay bust (local demo)</button>
+  <div class="status" id="uploadStatus">Nothing loaded yet.</div>
+</section>
+
+<section id="step-sculpt">
+  <h2>2 · Sculpt</h2>
+  <p class="note">The clay stage. Reconstruction from new captures (orbit hull, COLMAP photo sets, GNM fit) runs on the backend host; this stage presents the sculpt with matte clay lighting.</p>
+  <div id="stage">
+    <div class="loading" id="stageLoading">Load a model to begin.</div>
+    <div class="hint">Drag to orbit · Scroll to zoom</div>
+  </div>
+  <div class="status" id="modelStatus">No model on stage.</div>
+</section>
+
+<section id="step-lipsync">
+  <h2>3 · Lip-Sync</h2>
+  <p class="note">Word clips, one word per clip, in order. Run lip-sync on the open job (backend), or load a keyframes JSON plus the word WAVs directly. Playback drives the model's viseme morph targets in sync with the audio.</p>
+  <button type="button" id="runLipsyncBtn" disabled>Run lip-sync on this job</button>
+  <label class="file">Keyframes (.json)<input type="file" id="keyframesFile" accept=".json"></label>
+  <label class="file">Word clips (.wav)<input type="file" id="wordFiles" accept=".wav,audio/wav" multiple></label>
+  <div class="wordlist" id="wordList"></div>
+  <button type="button" id="playBtn" disabled>Play sequence</button>
+  <button type="button" id="stopBtn" disabled>Stop</button>
+  <div class="status" id="syncStatus">No keyframes loaded.</div>
+</section>
+
+<section id="step-grade">
+  <h2>4 · Grade</h2>
+  <p class="note">Primary CMYK ink grade first (ink is added by tonal zone, so even neutral gray clay takes tint), then the secondary RGB lift / gamma / gain pass. The shader is shaders/clay_grade.frag; the backend grading_ref.py is its parity reference.</p>
+  <fieldset>
+    <legend>CMYK ink · shadow zone</legend>
+    <div class="cmy" data-zone="inkShadow"></div>
+  </fieldset>
+  <fieldset>
+    <legend>CMYK ink · midtone zone</legend>
+    <div class="cmy" data-zone="inkMid"></div>
+  </fieldset>
+  <fieldset>
+    <legend>CMYK ink · highlight zone</legend>
+    <div class="cmy" data-zone="inkHigh"></div>
+  </fieldset>
+  <fieldset>
+    <legend>Black plate</legend>
+    <div data-zone="plate"></div>
+  </fieldset>
+  <fieldset>
+    <legend>RGB · lift / gamma / gain (after CMYK)</legend>
+    <div data-zone="rgb"></div>
+  </fieldset>
+  <button type="button" id="resetGradeBtn">Reset grade</button>
+</section>
+
+<section id="step-export">
+  <h2>5 · Export</h2>
+  <p class="note">Downloads stay on this device. Video records the stage while the sequence plays, muxing the word audio (Reactor's captureStream + MediaRecorder pattern, MP4 first for iOS Safari). The grade is a shader pass; the GLB download carries the model and its morph animation as loaded.</p>
+  <p class="note">What each format carries, exactly. GLB: the model, its morph targets, and the weights animation. STL: static geometry only, for fabrication and CAD; no morph targets, no animation, no color or material, and no grade. USDZ: one static neutral pose for AR preview, built by the local backend; no morph targets or animation (Quick Look drops them from USDZ), and no grade.</p>
+  <button type="button" id="dlGlbBtn" disabled>Download GLB</button>
+  <button type="button" id="dlStlBtn" disabled>Download STL (static geometry)</button>
+  <button type="button" id="dlUsdzBtn" disabled>Download USDZ (static pose)</button>
+  <button type="button" id="dlKeyBtn" disabled>Download keyframes JSON</button>
+  <button type="button" id="recordBtn" disabled>Record graded lip-sync video</button>
+  <div class="status" id="exportStatus"></div>
+</section>
+
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

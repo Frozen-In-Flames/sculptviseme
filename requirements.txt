@@ -1,0 +1,11 @@
+# SculptViseme backend dependencies (both runner modes).
+fastapi
+uvicorn[standard]
+python-multipart
+numpy
+scipy
+Pillow
+# USDZ export additionally needs Pixar's USD bindings, which are
+# platform-specific; without them the USDZ endpoints answer 501
+# with the reason instead of failing:
+#   usd-core

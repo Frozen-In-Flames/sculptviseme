@@ -1,0 +1,63 @@
+{
+  "ready": true,
+  "model": {
+    "status": "fixture.glb: 235,600 vertices, 15 morph targets (sil, PP, FF, TH, DD, kk, CH, SS, nn, RR, aa, E, ih, oh, ou).",
+    "influences": {
+      "names": [
+        "sil",
+        "PP",
+        "FF",
+        "TH",
+        "DD",
+        "kk",
+        "CH",
+        "SS",
+        "nn",
+        "RR",
+        "aa",
+        "E",
+        "ih",
+        "oh",
+        "ou"
+      ],
+      "weights": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "gradePixelDelta": [
+    9.002030519320705,
+    5.861432439084425,
+    5.478494954467145
+  ],
+  "morphPeak": 0.95845,
+  "morphEndMax": 0,
+  "exportButtons": {
+    "stlEnabled": true,
+    "usdzEnabled": true,
+    "usdzLabel": "Download USDZ (static pose)"
+  },
+  "stlDownload": {
+    "file": "fixture.stl",
+    "bytes": 23568284,
+    "triangles": 471364,
+    "headerOk": true
+  },
+  "pageErrors": [],
+  "consoleErrors": [],
+  "badResponses": []
+}
