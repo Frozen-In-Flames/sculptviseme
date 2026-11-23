@@ -160,6 +160,22 @@ class GateTests(unittest.TestCase):
         with self.assertRaises(head_fit.FitUnavailable):
             head_fit.load_gnm_template()
 
+    def test_gnm_template_loads_when_vendored(self):
+        st = head_fit.gnm_status()
+        if not st["available"]:
+            self.skipTest("GNM assets are not vendored on this host")
+        pos, idx, lm = head_fit.load_gnm_template()
+        self.assertGreater(len(pos), 5000)
+        self.assertEqual(idx.shape[1], 3)
+        self.assertLess(idx.max(), len(pos))
+        for name in ("nose_tip", "mouth_center",
+                     "mouth_corner_left", "mouth_corner_right"):
+            self.assertIn(name, lm)
+        # The mouth landmarks span a plausible mouth: corners
+        # apart, center between them.
+        c = pos[lm["mouth_corner_left"]] - pos[lm["mouth_corner_right"]]
+        self.assertGreater(np.linalg.norm(c), 0.01)
+
     def test_colmap_gate(self):
         st = colmap_stage.status()
         if st["available"]:

@@ -564,3 +564,37 @@ publish both landed the same night:
   Vendoring is a separate step taken with the owner.
 - GET /api/health now reports both stage gates live.
 - 17 new tests (100 total, 3 pxr skips as before).
+
+## Slice 3b: GNM vendored, first real fit (Nov 23, 2026)
+
+- Owner approved the vendoring explicitly after the
+  execution-risk flag was explained. Source: google/GNM at
+  dfd3e4b (the RESEARCH pin); the model data does not live in
+  the repo, it is one npz served from the project's Hugging
+  Face repo (google/gnm-v3, v3_0/gnm_head.npz, 53 MB,
+  sha256 61d78bbf...). Extracted with build_asset.py: skin
+  component only (12,466 of 17,821 verts; 24,820 tris), the 68
+  sparse landmarks (max-barycentric-weight vertex, all on
+  skin), upper/lower lip vertex sets. Asset is 457 KB;
+  provenance + hashes in backend/assets/gnm/VENDOR.md.
+- First real fit: GNM template -> v3 clay bust face region
+  (39,721 target points), 5 landmarks (chin, nose tip, mouth
+  center + corners; bust side estimated), 30 iterations, 10 s.
+  Mean surface distance 0.534 -> 0.0274 bust units; max 0.745
+  (back of head/neck, where the relief target has no surface).
+  Fitted mouth from inherited landmarks: center
+  (0.041, -0.299, 0.664), width 0.405, against the bust's
+  measured (0.036, -0.295), 0.405. Note: locate_mouth's
+  estimator misreads the fitted full head (it was built for
+  relief busts); on fitted meshes the inherited landmarks are
+  the correct source, and were used.
+- Visemes authored on the fitted mesh from its landmarks and
+  exported as a GLB with all 15 morph targets (2.8 MB).
+  Sensory screenshots (sil vs aa): the fitted head has a real
+  lip line with an opening the relief never had, and aa drops
+  the jaw and opens the mouth. Honest limits: the relief's
+  striations transfer into the fit, the surface is lumpy, and
+  the lip corners tear slightly at full influence. A working
+  chain, not a likeness. Refinement path is in the README.
+- 101 tests (new: vendored template load + landmark sanity;
+  the refusal test now skips, as designed, where vendored).

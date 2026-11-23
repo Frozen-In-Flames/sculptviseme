@@ -80,7 +80,7 @@ enter the runner's URL and token.
 
 ## Status
 
-Implemented and covered by the test suite (100 tests):
+Implemented and covered by the test suite (101 tests):
 
 - capture-bundle validation against the bundle specification
 - word-by-word lip-sync alignment (grapheme-to-phoneme, viseme
@@ -104,11 +104,21 @@ Implemented and covered by the test suite (100 tests):
   initialized rigid alignment plus non-rigid ICP with trimmed
   matching and deformation-form Laplacian stiffness, verified
   against synthetic templates (identity fixed-point control
-  included). The GNM Head template assets are not vendored yet,
-  so the GNM gate reports unavailable and refuses; the COLMAP
-  photo route (`backend/colmap_stage.py`) is likewise gated on
-  COLMAP being installed on the host. Both gates are reported
-  live in `GET /api/health`
+  included). The GNM Head template IS vendored
+  (`backend/assets/gnm/`, Apache 2.0, provenance and hashes in
+  its VENDOR.md): the skin component, 12,466 vertices, with the
+  68 landmarks and lip vertex sets. A first real fit (GNM
+  template onto the v3 clay bust, five landmarks, 30 iterations)
+  took mean surface error from 0.534 to 0.027 in bust units and
+  put the template's mouth on the bust's measured mouth center
+  and width exactly; visemes were then authored on the fitted
+  mesh from its inherited landmarks. The fit is a working
+  starting point, not a likeness: the relief target's striations
+  transfer, and the lip corners show tearing at full influence
+  in the sensory screenshots. The COLMAP photo route
+  (`backend/colmap_stage.py`) is gated on COLMAP being
+  installed on the host. Both gates are reported live in
+  `GET /api/health`
 - production viseme authoring (`backend/viseme_authoring.py`,
   `POST /api/mesh-author-visemes`): the 15 viseme morph targets
   are generated from a neutral bust as combinations of five
@@ -121,13 +131,14 @@ Implemented and covered by the test suite (100 tests):
 
 Designed and specified (RESEARCH.md), not yet built:
 
-- vendoring the GNM Head template assets (pinned commit, hashes
-  recorded at vendor time) so the fit engine runs on the real
-  template, and a job-level pipeline that chains bundle, hull,
-  fit, and authoring in one call. The fit is also what brings
-  true lip topology to a bust: the clay relief the authoring is
-  verified on has no sculpted lips, so its targets move the
-  mouth region correctly without a lip line to articulate
+- a job-level pipeline that chains bundle, hull, fit, and
+  authoring in one call, and fit refinement: more landmarks
+  (the full 68 estimated on the target, not five), a slower
+  stiffness schedule, and a sculpt-grade target in place of the
+  relief. The fit is what brings true lip topology to a bust:
+  the clay relief the authoring is verified on has no sculpted
+  lips, so its targets move the mouth region correctly without
+  a lip line to articulate
 
 ## Tests
 
