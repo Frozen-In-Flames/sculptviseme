@@ -25,6 +25,9 @@ modules below are identical in both. It wires them together:
                                indices, optional morph deltas and
                                names, optional keyframes JSON) into
                                a GLB with glb_exporter
+  POST /api/mesh-reconstruct   visual-hull reconstruction from
+                               orbit silhouette masks (NPZ in,
+                               mesh NPZ out) with reconstruction
   POST /api/mesh-author-visemes
                                author production viseme morph
                                targets for an NPZ mesh with
@@ -138,10 +141,14 @@ def _job_manifest(job_id):
 
 @app.get("/api/health")
 def health():
+    import colmap_stage
+    import head_fit
     return {"ok": True, "app": "SculptViseme", "mode": MODE,
             "auth_required": bool(API_TOKEN),
             "jobs_dir": JOBS_DIR,
-            "demo_bust_available": os.path.isfile(DEMO_BUST)}
+            "demo_bust_available": os.path.isfile(DEMO_BUST),
+            "stages": {"colmap": colmap_stage.status(),
+                       "gnm_fit": head_fit.gnm_status()}}
 
 
 @app.post("/api/bundles")
@@ -321,6 +328,45 @@ async def mesh_author_visemes(mesh: UploadFile = File(...),
         headers={"Content-Disposition":
                  "attachment; filename=mesh-authored.npz",
                  "X-SculptViseme-Landmarks": json.dumps(info["landmarks"])})
+
+
+@app.post("/api/mesh-reconstruct")
+async def mesh_reconstruct(masks_npz: UploadFile = File(...),
+                           grid: int = Form(72)):
+    """Visual-hull reconstruction from orbit silhouettes.
+
+    NPZ fields: masks (V, H, W) (any dtype; nonzero is subject)
+    and azimuths_deg (V,), the turntable azimuth of each mask in
+    degrees. Returns an NPZ with positions/indices of the carved
+    hull surfaced as a mesh, plus the reconstruction report in
+    the X-SculptViseme-Reconstruct header. The hull is the input
+    the fit and viseme stages consume.
+    """
+    import reconstruction
+    raw = await masks_npz.read()
+    try:
+        data = np.load(io.BytesIO(raw), allow_pickle=False)
+        masks = np.asarray(data["masks"]) != 0
+        azimuths = np.asarray(data["azimuths_deg"], dtype=np.float64)
+    except Exception as exc:
+        raise HTTPException(422, f"bad masks NPZ: {exc}")
+    if masks.ndim != 3 or len(masks) != len(azimuths) or not len(masks):
+        raise HTTPException(
+            422, "masks (V,H,W) and azimuths_deg (V,) must pair up")
+    if not 16 <= int(grid) <= 128:
+        raise HTTPException(422, "grid must be within [16, 128]")
+    try:
+        positions, indices, report = reconstruction.reconstruct(
+            list(masks), list(azimuths), grid=int(grid))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    buf = io.BytesIO()
+    np.savez(buf, positions=positions, indices=indices)
+    return Response(
+        content=buf.getvalue(), media_type="application/octet-stream",
+        headers={"Content-Disposition":
+                 "attachment; filename=reconstructed.npz",
+                 "X-SculptViseme-Reconstruct": json.dumps(report)})
 
 
 @app.post("/api/mesh-stl")

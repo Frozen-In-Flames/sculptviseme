@@ -80,7 +80,7 @@ enter the runner's URL and token.
 
 ## Status
 
-Implemented and covered by the test suite (83 tests):
+Implemented and covered by the test suite (100 tests):
 
 - capture-bundle validation against the bundle specification
 - word-by-word lip-sync alignment (grapheme-to-phoneme, viseme
@@ -94,6 +94,21 @@ Implemented and covered by the test suite (83 tests):
   zero external requests)
 - dual runners: local mode, cloud mode with bearer-token gate and
   CORS, verified end to end through the real frontend
+- visual-hull reconstruction (`backend/reconstruction.py`,
+  `POST /api/mesh-reconstruct`): orbit silhouette masks carved
+  into a voxel hull and surfaced with a naive surface net, plus
+  empty-plate silhouette extraction. Verified against an
+  analytic sphere oracle (volume within 3 percent at grid 48);
+  the concavity limit is documented and asserted in tests
+- the template fit engine (`backend/head_fit.py`): landmark
+  initialized rigid alignment plus non-rigid ICP with trimmed
+  matching and deformation-form Laplacian stiffness, verified
+  against synthetic templates (identity fixed-point control
+  included). The GNM Head template assets are not vendored yet,
+  so the GNM gate reports unavailable and refuses; the COLMAP
+  photo route (`backend/colmap_stage.py`) is likewise gated on
+  COLMAP being installed on the host. Both gates are reported
+  live in `GET /api/health`
 - production viseme authoring (`backend/viseme_authoring.py`,
   `POST /api/mesh-author-visemes`): the 15 viseme morph targets
   are generated from a neutral bust as combinations of five
@@ -106,9 +121,10 @@ Implemented and covered by the test suite (83 tests):
 
 Designed and specified (RESEARCH.md), not yet built:
 
-- reconstruction stage adapters (visual hull, COLMAP) and the
-  non-rigid head fit (GNM Head, Apache 2.0) that turn a validated
-  capture bundle into a new sculpt. The fit is also what brings
+- vendoring the GNM Head template assets (pinned commit, hashes
+  recorded at vendor time) so the fit engine runs on the real
+  template, and a job-level pipeline that chains bundle, hull,
+  fit, and authoring in one call. The fit is also what brings
   true lip topology to a bust: the clay relief the authoring is
   verified on has no sculpted lips, so its targets move the
   mouth region correctly without a lip line to articulate

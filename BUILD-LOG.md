@@ -529,3 +529,38 @@ publish both landed the same night:
   relief has no sculpted lip topology, so targets move the
   mouth region correctly without a lip line to articulate; the
   GNM fit stage is what brings lip topology.
+
+## Slice 3: reconstruction + fit stages (Nov 23, 2026)
+
+- backend/reconstruction.py: generalized visual hull. Orbit
+  silhouette masks (orthographic turntable model, documented)
+  carved into voxels, naive surface net to a mesh, plus
+  silhouette_from_plate (empty-plate differencing) for capture
+  matting. POST /api/mesh-reconstruct serves it statelessly.
+  Oracle: analytic sphere silhouettes -> volume within 3% at
+  grid 48, centroid exact; controls assert the hull contains
+  the shape, 4 views loosen it >10% vs 24, azimuth labels
+  rotated 90 degrees measurably misplace an off-center sphere,
+  and a bored cylinder comes back filled (the documented
+  concavity limit).
+- backend/head_fit.py: the fit engine. Umeyama landmark init +
+  non-rigid ICP, trimmed one-way matching, Laplacian stiffness
+  decaying 8 -> 0.35. One real defect was caught by the
+  convergence test and root-caused with an identity probe: the
+  first implementation put the Laplacian on absolute positions,
+  which shrinks the mesh toward local centroids (one step moved
+  mean error 0.065 -> 0.588). The shipped form acts on the
+  deformation (Amberg et al.), making the identity target an
+  exact fixed point at any stiffness; that probe is now a
+  regression test.
+- backend/colmap_stage.py: the COLMAP photo route behind a
+  detection gate (pycolmap or CLI), honest refusal when absent,
+  CLI pipeline implemented against the documented interface.
+- GNM assets NOT vendored: the clone of google/GNM was stopped
+  after the environment's execution-risk check flagged the
+  third-party content; no GNM code or assets were read, run, or
+  copied. head_fit.gnm_status() reports unavailable with the
+  pinned commit (dfd3e4b) and load_gnm_template() refuses.
+  Vendoring is a separate step taken with the owner.
+- GET /api/health now reports both stage gates live.
+- 17 new tests (100 total, 3 pxr skips as before).
