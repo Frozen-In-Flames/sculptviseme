@@ -25,6 +25,13 @@ modules below are identical in both. It wires them together:
                                indices, optional morph deltas and
                                names, optional keyframes JSON) into
                                a GLB with glb_exporter
+  POST /api/mesh-author-visemes
+                               author production viseme morph
+                               targets for an NPZ mesh with
+                               viseme_authoring (landmarks given
+                               or estimated); returns an NPZ with
+                               morph_names + morph_i deltas ready
+                               for /api/mesh-glb
   POST /api/mesh-stl           the same NPZ mesh as binary STL
                                (static geometry only) with
                                stl_exporter
@@ -268,6 +275,52 @@ async def mesh_glb(mesh: UploadFile = File(...),
     return Response(content=glb, media_type="model/gltf-binary",
                     headers={"Content-Disposition":
                              "attachment; filename=mesh.glb"})
+
+
+@app.post("/api/mesh-author-visemes")
+async def mesh_author_visemes(mesh: UploadFile = File(...),
+                              landmarks: str = Form(None)):
+    """Author production viseme morph targets for an NPZ mesh.
+
+    NPZ fields: positions (N,3), indices (M,3). The optional form
+    field `landmarks` is JSON {"center": [x, y, z], "width": w}
+    in mesh units; when it is absent the landmarks are estimated
+    from the mesh (viseme_authoring.locate_mouth) and the estimate
+    is a starting point, not a fit.
+
+    Returns an NPZ with the same positions/indices plus
+    morph_names and morph_0..14 delta arrays in the aligner's
+    viseme order, ready to upload to /api/mesh-glb. The landmarks
+    used are returned in the X-SculptViseme-Landmarks header.
+    """
+    import viseme_authoring
+    data = _npz_data(await mesh.read())
+    if "positions" not in data or "indices" not in data:
+        raise HTTPException(422, "NPZ needs positions and indices")
+    lm = None
+    if landmarks:
+        try:
+            raw = json.loads(landmarks)
+            lm = {"center": np.asarray(raw["center"], dtype=np.float64),
+                  "width": float(raw["width"])}
+        except (ValueError, KeyError, TypeError) as exc:
+            raise HTTPException(422, f"bad landmarks: {exc}")
+    try:
+        targets, info = viseme_authoring.author_visemes(
+            data["positions"], landmarks=lm)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    fields = {"positions": data["positions"], "indices": data["indices"],
+              "morph_names": np.array([t["name"] for t in targets])}
+    for i, t in enumerate(targets):
+        fields[f"morph_{i}"] = t["position"].astype(np.float32)
+    buf = io.BytesIO()
+    np.savez(buf, **fields)
+    return Response(
+        content=buf.getvalue(), media_type="application/octet-stream",
+        headers={"Content-Disposition":
+                 "attachment; filename=mesh-authored.npz",
+                 "X-SculptViseme-Landmarks": json.dumps(info["landmarks"])})
 
 
 @app.post("/api/mesh-stl")

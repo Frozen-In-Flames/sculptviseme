@@ -489,3 +489,43 @@ publish both landed the same night:
   self-hosted tool whose steps need its backend; the README
   quickstart is the entry point. The Hugging Face mirror follows
   the standing batch cadence (~March 2027).
+
+## Slice 2: production viseme authoring (Nov 23, 2026)
+
+- backend/viseme_authoring.py: the 15 viseme targets are sums of
+  five articulation primitives (jaw_open, lip_close, lip_round,
+  lip_spread, lip_tuck) over smooth anisotropic fields in units
+  of mouth width; the per-viseme combination table is documented
+  per articulation. No hard boxes, no step weights (the fixture
+  scaffolding had both).
+- Landmarks are an input with an estimator: locate_mouth reads
+  the central column's front profile, takes the longest
+  near-planar band as the face (the v3 bust's face is a relief:
+  profile z 0.63-0.67 flat from y -0.96 to +0.33, so profile-peak
+  methods have nothing to find), places the mouth 48% up the
+  band, set back 9% of band height, width 42% of the bust's
+  cross-section at mouth height. Estimate on the v3 bust:
+  center (0.036, -0.295, 0.552), width 0.405, against the
+  hand-tuned fixture center (0, -0.35, 0.55). Regression-tested.
+  Two estimator defects were caught by measurement and fixed
+  before shipping: naive nose/chin proportions (the bust runs
+  well below the chin) and width from the near-front patch
+  (0.226, several times too small on a relief).
+- POST /api/mesh-author-visemes: NPZ in, authored NPZ out
+  (morph_names + morph_i), landmarks echoed in a response
+  header; the output feeds /api/mesh-glb unchanged (tested).
+- 12 new tests (83 total, 3 pxr skips as before): articulation
+  direction (PP gap closes >2x, aa opens >1.5x, ou corners in
+  + lips forward, FF lower lip up and in), smoothness, bounded
+  support, landmark-shift negative control, determinism, GLB
+  round-trip, estimator regression, endpoint round-trip + 422.
+- The verification fixture now authors through the production
+  module (estimated landmarks); frontend verification re-run
+  green: 15 targets load, sequencer peak influence 0.902 and
+  zero at the end, STL export 471,364 triangles, no errors.
+- Sensory pass (screenshots, sil vs aa at full influence): the
+  lower face drops and elongates smoothly, no tearing; sil is
+  untouched. Honest limit, now stated in the README: the clay
+  relief has no sculpted lip topology, so targets move the
+  mouth region correctly without a lip line to articulate; the
+  GNM fit stage is what brings lip topology.

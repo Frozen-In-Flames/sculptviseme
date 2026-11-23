@@ -80,7 +80,7 @@ enter the runner's URL and token.
 
 ## Status
 
-Implemented and covered by the test suite (71 tests):
+Implemented and covered by the test suite (83 tests):
 
 - capture-bundle validation against the bundle specification
 - word-by-word lip-sync alignment (grapheme-to-phoneme, viseme
@@ -94,14 +94,24 @@ Implemented and covered by the test suite (71 tests):
   zero external requests)
 - dual runners: local mode, cloud mode with bearer-token gate and
   CORS, verified end to end through the real frontend
+- production viseme authoring (`backend/viseme_authoring.py`,
+  `POST /api/mesh-author-visemes`): the 15 viseme morph targets
+  are generated from a neutral bust as combinations of five
+  articulation primitives (jaw, closure, rounding, spread, lower
+  lip tuck) over smooth mouth-region fields, in units of the
+  mouth width. Landmarks are an input; when absent they are
+  estimated from the mesh's face band and reported. The
+  verification fixture now exercises this same code path instead
+  of its former hand-made scaffolding deltas
 
 Designed and specified (RESEARCH.md), not yet built:
 
 - reconstruction stage adapters (visual hull, COLMAP) and the
   non-rigid head fit (GNM Head, Apache 2.0) that turn a validated
-  capture bundle into a new sculpt
-- hand-authored viseme targets on a production bust (the test
-  fixture's targets are labeled scaffolding)
+  capture bundle into a new sculpt. The fit is also what brings
+  true lip topology to a bust: the clay relief the authoring is
+  verified on has no sculpted lips, so its targets move the
+  mouth region correctly without a lip line to articulate
 
 ## Tests
 
